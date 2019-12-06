@@ -56,6 +56,12 @@ class Client:
             j['state'] = 'MemberList'
             ws.send(json.dumps(j,ensure_ascii=False))
 
+    def S_Log(self,ws):
+        with open('Json/Send/API.json') as f:
+            j = json.load(f)
+            j['state'] = 'Log'
+            ws.send(json.dumps(j,ensure_ascii=False))
+
     def R_Login(self, ws,data):
         self.userID = data['userID']
         print('あなたのユーザIDは' + self.userID + 'です \n')
@@ -71,14 +77,39 @@ class Client:
             return
         print('DM@' + str(data['saidName']) + '(' + str(data['saidID']) +'):' + data['message'])
 
+    def R_Log(self, ws,data):
+        print('過去ログここから \n')
+        for d in data['messages']:
+            print(str(d['saidName']) + '(' + str(d['saidID']) +'):' + d['message'])
 
+        print('\n過去ログここまで \n')
+
+        # print('DM@' + str(data['saidName']) + '(' + str(data['saidID']) +'):' + data['message'])
+
+    def R_MemberList(self, ws,data):
+        print('参加している人　ここから \n')
+        for d in data['Member']:
+            print(str(d['userName']) + '(' + str(d['userID']) +')')
+
+        print('\n参加している人 ここまで \n')
+
+    def R_Info(self, ws,data):
+        print(data['message'] + '\n')
+
+        
 client = Client(-1,"名無し")
 
 def on_message(ws, message):
-    if client.userID != -1:
-        print(message)
-
     data = json.loads(message)
+
+    if data['state'] == 'Login':
+        client.R_Login(ws,data)
+
+    if client.userID == -1:
+        return
+
+    print(message)
+
     if data['state'] == None:
         return
 
@@ -88,7 +119,13 @@ def on_message(ws, message):
         client.R_Talk(ws,data)
     if data['state'] == 'DM':
         client.R_DM(ws,data)
-        
+    if data['state'] == 'Log':
+        client.R_Log(ws,data)
+    if data['state'] == 'MemberList':
+        client.R_MemberList(ws,data)
+    if data['state'] == 'Info':
+        client.R_Info(ws,data)
+
 def on_error(ws, error):
     print(error)
 
@@ -99,9 +136,11 @@ def on_open(ws):
     def run(*args):
         client.S_Login(ws)
 
-        print(('end:"退出" \n' + 
+        print(('end:退出 \n' + 
                 'list:部屋にいる人を表示 \n' +
+                'log:過去５０件分の発言を見れる \n' + 
                 'dm@(相手の名前),(文章):DMを送れる \n'))
+
         while True:
             if client.userID == -1:
                 continue
@@ -110,8 +149,10 @@ def on_open(ws):
 
             if s == "end":
                 break
-            elif s == "List":
+            elif s == "list":
                 client.S_MemberList(ws)
+            elif s == 'log':
+                client.S_Log(ws)
             elif  s[0:3] == 'dm@':
                 client.S_DM(ws,s)
             else:

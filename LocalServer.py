@@ -34,6 +34,7 @@ class RoomBase:
         self.Member = []
         self.maxLog = maxLog
         self.logs = [''] * maxLog
+        # self.logs = dict([('state', 'Talk'), ('saidID', -1),('saidName', 'hoge'), ('message', 'tya')]) * self.maxLog
 
     def __handler(self,func,*args):
         return func(*args)
@@ -55,6 +56,8 @@ class RoomBase:
         self.Member.append(m)
         sendData = dict([('state', 'Login'), ('userID', str(_usrid))])
         server.send_message(client,json.dumps(sendData,ensure_ascii=False))
+        sendData = dict([('state', 'Info'), ('message', str(m.userName) + 'さんが入室しました')])
+        server.send_message_to_all(json.dumps(sendData,ensure_ascii=False))
 
     def RoomMemberList(self, client, server, data):
         base = dict([('userID',-1), ('userName','Hoge')])
@@ -87,7 +90,7 @@ class RoomBase:
         server.send_message_to_all(json.dumps(sendData,ensure_ascii=False))
         print(str(sendData['saidName']) + '(' + str(sendData['saidID']) +'):' + sendData['message'])
         self.logs.pop(0)
-        self.logs.append(json.dumps(sendData,ensure_ascii=False))
+        self.logs.append(sendData)
 
     def DMRequest(self, client, server, data):
         #Nullチェック
@@ -110,6 +113,30 @@ class RoomBase:
         
         sendData = dict([('state', 'DM'), ('saidID', my.userID),('saidName', my.userName), ('message', data['message'])])
         server.send_message(opp.client,json.dumps(sendData,ensure_ascii=False))
+
+    def LogRequest(self,client, server, data):
+        base = dict([('saidID',''), ('saidName','Hoge'), ('message','Hoge')])
+        sendData = {"state": "Log","messages": []}
+
+        # sendData.append(dict([('state','MemberList')]))
+        # sendData.append('state')
+        # sendData.append('MemberList')
+
+        for m in self.logs:
+
+            if m == '':
+                continue
+
+            b = base.copy()
+
+            b['saidID'] = m['saidID']
+            b['saidName'] = m['saidName']
+            b['message'] = m['message']
+            sendData['messages'].append(b)
+        
+        print(sendData)
+        server.send_message(client,json.dumps(sendData,ensure_ascii=False))
+
 
     def Logout(self,client,server):
 
@@ -171,7 +198,8 @@ def message_received(client, server, message):
         Room.DMRequest(client,server,data)
     elif data['state'] == 'MemberList':
         Room.RoomMemberList(client,server,data)
-
+    elif data['state'] == 'Log':
+        Room.LogRequest(client,server,data)
 
     # sendID = getSendID(int(client['id']))
     # server.send_message(server.clients[sendID],json.dumps(sendData))
